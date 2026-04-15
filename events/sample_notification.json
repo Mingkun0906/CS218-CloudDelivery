@@ -1,14 +1,20 @@
 {
+  "_comment": "SQS event for sam local invoke NotificationLambda. body = SNS envelope wrapping our NotificationMessage.",
   "Records": [
     {
-      "messageId": "msg_01J8KZ2XYZ",
-      "receiptHandle": "AQEBwJnKyrHigUMZj6reyNurzbEP...",
-      "body": "{\"Type\":\"Notification\",\"MessageId\":\"evt_01J8KZ2XYZ\",\"Message\":\"{\\\"notificationType\\\":\\\"COURIER_ASSIGNED\\\",\\\"eventId\\\":\\\"evt_01J8KZ2XYZ\\\",\\\"timestamp\\\":\\\"2026-04-14T20:00:03Z\\\",\\\"traceId\\\":\\\"unknown\\\",\\\"recipients\\\":{\\\"courierId\\\":\\\"cur_01J8KZ2XYZ\\\",\\\"customerId\\\":\\\"cus_01J8KZ2XYZ\\\",\\\"restaurantId\\\":\\\"rst_01J8KZ2XYZ\\\"},\\\"data\\\":{\\\"orderId\\\":\\\"ord_01J8KZ2XYZ\\\",\\\"status\\\":\\\"assigned\\\",\\\"pickupAddress\\\":\\\"123 Main St, Los Angeles, CA 90001\\\",\\\"dropoffAddress\\\":\\\"456 Oak Ave, Los Angeles, CA 90002\\\"}}\"}",
+      "messageId": "059f36b4-87a3-44ab-83d2-661975830a7d",
+      "receiptHandle": "AQEBwJnKyrHigUMZj6reyNureBCo...",
+      "body": "{\"Type\":\"Notification\",\"MessageId\":\"95df01b4-ee98-5cb9-9903-4c221d41eb5e\",\"TopicArn\":\"arn:aws:sns:us-east-1:123456789012:clouddelivery-match-notifications-dev\",\"Subject\":null,\"Message\":\"{\\\"notificationType\\\":\\\"COURIER_ASSIGNED\\\",\\\"eventId\\\":\\\"evt_01HVMKN0000000000000000020\\\",\\\"timestamp\\\":\\\"2026-04-15T00:00:03Z\\\",\\\"traceId\\\":\\\"1-00000000-000000000000000000000000\\\",\\\"recipients\\\":{\\\"courierId\\\":\\\"cur_01HVMKN0000000000000000010\\\",\\\"customerId\\\":\\\"cus_01HVMKN0000000000000000001\\\",\\\"restaurantId\\\":\\\"rst_01HVMKN0000000000000000002\\\"},\\\"data\\\":{\\\"orderId\\\":\\\"ord_01HVMKN0000000000000000000\\\",\\\"status\\\":\\\"assigned\\\"}}\",\"Timestamp\":\"2026-04-15T00:00:03.000Z\",\"SignatureVersion\":\"1\",\"MessageAttributes\":{\"notificationType\":{\"Type\":\"String\",\"Value\":\"COURIER_ASSIGNED\"},\"courierId\":{\"Type\":\"String\",\"Value\":\"cur_01HVMKN0000000000000000010\"}}}",
       "attributes": {
         "ApproximateReceiveCount": "1",
-        "SentTimestamp": "1744665603000"
+        "SentTimestamp": "1744675203000",
+        "SenderId": "AROAIWPX5BD2BHG722MW4:clouddelivery-matching-dev",
+        "ApproximateFirstReceiveTimestamp": "1744675203001"
       },
+      "messageAttributes": {},
+      "md5OfBody": "e4e68fb7bd0e697a0ae8f1bb342846b0",
       "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:clouddelivery-notifications-dev",
       "awsRegion": "us-east-1"
     }
   ]

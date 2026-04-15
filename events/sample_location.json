@@ -1,17 +1,19 @@
 {
+  "_comment": "Kinesis event for sam local invoke LocationLambda. The data field is base64(EventEnvelope JSON).",
   "Records": [
     {
       "kinesis": {
-        "sequenceNumber": "49590338271490256608559692540925702759324208523137515523",
-        "data": "eyJldmVudElkIjoiZXZ0X2xvYzAxIiwiZXZlbnRUeXBlIjoiTE9DQVRJT05fVVBEQVRFIiwic2NoZW1hVmVyc2lvbiI6IjEuMCIsInRpbWVzdGFtcCI6IjIwMjYtMDQtMTRUMjA6MDA6MDBaIiwidHJhY2VJZCI6InVua25vd24iLCJwYXlsb2FkIjp7ImNvdXJpZXJJZCI6ImN1cl8wMUo4S1oyWFlaIiwibGF0IjozNC4wNTIyLCJsbmciOi0xMTguMjQzNywidGltZXN0YW1wIjoiMjAyNi0wNC0xNFQyMDowMDowMFoifX0=",
-        "partitionKey": "cur_01J8KZ2XYZ",
-        "approximateArrivalTimestamp": 1744665600.0
+        "kinesisSchemaVersion": "1.0",
+        "partitionKey": "cur_01HVMKN0000000000000000010",
+        "sequenceNumber": "49590338271490256608559692540961693206152755161246945283",
+        "data": "eyJldmVudElkIjogImV2dF8wMUhWTUtOMDAwMDAwMDAwMDAwMDAwMDAxMCIsICJldmVudFR5cGUiOiAiTE9DQVRJT05fVVBEQVRFIiwgInNjaGVtYVZlcnNpb24iOiAiMS4wIiwgInRpbWVzdGFtcCI6ICIyMDI2LTA0LTE1VDAwOjAwOjAwWiIsICJ0cmFjZUlkIjogIjEtMDAwMDAwMDAtMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAxIiwgInBheWxvYWQiOiB7ImNvdXJpZXJJZCI6ICJjdXJfMDFIVk1LTjAwMDAwMDAwMDAwMDAwMDAwMTAiLCAibGF0IjogMzQuMDUwNSwgImxuZyI6IC0xMTguMjQyLCAidGltZXN0YW1wIjogIjIwMjYtMDQtMTVUMDA6MDA6MDBaIn19",
+        "approximateArrivalTimestamp": 1744675200.0
       },
       "eventSource": "aws:kinesis",
       "eventVersion": "1.0",
-      "eventID": "shardId-000000000001:49590338271490256608559692540925702759324208523137515523",
+      "eventID": "shardId-000000000000:49590338271490256608559692540961693206152755161246945283",
       "eventName": "aws:kinesis:record",
-      "invokeIdentityArn": "arn:aws:iam::123456789012:role/LocationLambdaRole",
+      "invokeIdentityArn": "arn:aws:iam::123456789012:role/clouddelivery-location-role-dev",
       "awsRegion": "us-east-1",
       "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789012:stream/clouddelivery-locations-dev"
     }

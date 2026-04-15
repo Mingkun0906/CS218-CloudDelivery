@@ -1,19 +1,25 @@
 {
+  "_comment": "API Gateway proxy event for PUT /couriers/{courierId}/assignment/accept",
   "httpMethod": "PUT",
-  "resource": "/couriers/{courierId}/assignment/accept",
+  "path": "/couriers/cur_01HVMKN0000000000000000010/assignment/accept",
   "pathParameters": {
-    "courierId": "cur_01J8KZ2XYZ"
+    "courierId": "cur_01HVMKN0000000000000000010"
+  },
+  "queryStringParameters": null,
+  "headers": {
+    "Authorization": "Bearer <cognito-jwt>",
+    "Content-Type": "application/json"
   },
   "body": "{}",
   "requestContext": {
     "authorizer": {
       "claims": {
-        "sub": "cur_01J8KZ2XYZ",
-        "cognito:groups": ["couriers"]
+        "sub": "cur_01HVMKN0000000000000000010",
+        "cognito:groups": ["couriers"],
+        "email": "courier@example.com"
       }
-    }
+    },
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef"
   },
-  "headers": {
-    "Authorization": "Bearer <test-jwt>"
-  }
+  "isBase64Encoded": false
 }
