@@ -1,16 +1,16 @@
 {
   "MatchingLambda": {
     "ORDERS_TABLE": "clouddelivery-dev",
-    "REDIS_HOST": "FILL_IN_AFTER_SAM_DEPLOY",
+    "REDIS_HOST": "FILL_IN_AFTER_ELASTICACHE_DEPLOY",
     "REDIS_PORT": "6379",
     "SEARCH_RADIUS_KM": "5",
     "MAX_COURIER_CANDIDATES": "10",
-    "MATCH_TOPIC_ARN": "FILL_IN_AFTER_SAM_DEPLOY",
+    "MATCH_TOPIC_ARN": "arn:aws:sns:us-east-1:043254348860:clouddelivery-match-notifications-dev",
     "ENV": "dev",
     "LOG_LEVEL": "INFO"
   },
   "LocationLambda": {
-    "REDIS_HOST": "FILL_IN_AFTER_SAM_DEPLOY",
+    "REDIS_HOST": "FILL_IN_AFTER_ELASTICACHE_DEPLOY",
     "REDIS_PORT": "6379",
     "LOCATION_TTL_SECONDS": "30",
     "ENV": "dev",
@@ -30,7 +30,7 @@
   },
   "NotificationLambda": {
     "ORDERS_TABLE": "clouddelivery-dev",
-    "NOTIFICATION_QUEUE_URL": "FILL_IN_AFTER_SAM_DEPLOY",
+    "NOTIFICATION_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/043254348860/clouddelivery-notifications-dev",
     "ENV": "dev",
     "LOG_LEVEL": "INFO"
   }
