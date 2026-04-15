@@ -1,7 +1,7 @@
 {
   "MatchingLambda": {
     "ORDERS_TABLE": "clouddelivery-dev",
-    "REDIS_HOST": "FILL_IN_AFTER_ELASTICACHE_DEPLOY",
+    "REDIS_HOST": "clouddelivery-redis-dev.ieuoys.ng.0001.use1.cache.amazonaws.com",
     "REDIS_PORT": "6379",
     "SEARCH_RADIUS_KM": "5",
     "MAX_COURIER_CANDIDATES": "10",
@@ -10,7 +10,7 @@
     "LOG_LEVEL": "INFO"
   },
   "LocationLambda": {
-    "REDIS_HOST": "FILL_IN_AFTER_ELASTICACHE_DEPLOY",
+    "REDIS_HOST": "clouddelivery-redis-dev.ieuoys.ng.0001.use1.cache.amazonaws.com",
     "REDIS_PORT": "6379",
     "LOCATION_TTL_SECONDS": "30",
     "ENV": "dev",

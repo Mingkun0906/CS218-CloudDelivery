@@ -15,11 +15,19 @@ Globals:
     Timeout: 30
     MemorySize: 256
     Tracing: Active
+    VpcConfig:
+      SecurityGroupIds:
+        - sg-026d9252cc3d23c4c   # clouddelivery-lambda-sg-dev
+      SubnetIds:
+        - subnet-01aa0eef94fb322ea  # us-east-1a
+        - subnet-023eec997ff73d783  # us-east-1b
     Environment:
       Variables:
         ENV: !Ref Env
         LOG_LEVEL: INFO
         ORDERS_TABLE: !Sub clouddelivery-${Env}
+        REDIS_HOST: clouddelivery-redis-dev.ieuoys.ng.0001.use1.cache.amazonaws.com
+        REDIS_PORT: "6379"
 
 Resources:
 
@@ -291,8 +299,6 @@ Resources:
       Handler: handler.lambda_handler
       Environment:
         Variables:
-          REDIS_HOST: FILL_IN_AFTER_ELASTICACHE_DEPLOY
-          REDIS_PORT: "6379"
           SEARCH_RADIUS_KM: "5"
           MAX_COURIER_CANDIDATES: "10"
           MATCH_TOPIC_ARN: !Ref MatchTopic
