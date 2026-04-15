@@ -1,0 +1,23 @@
+{
+  "_comment": "API Gateway proxy event for POST /orders",
+  "httpMethod": "POST",
+  "path": "/orders",
+  "pathParameters": null,
+  "queryStringParameters": null,
+  "headers": {
+    "Authorization": "Bearer <cognito-jwt>",
+    "Content-Type": "application/json"
+  },
+  "body": "{\"restaurantId\":\"rst_01HVMKN0000000000000000002\",\"pickupLocation\":{\"lat\":34.0522,\"lng\":-118.2437,\"address\":\"123 Main St, Los Angeles, CA 90001\"},\"dropoffLocation\":{\"lat\":34.0611,\"lng\":-118.2400,\"address\":\"456 Oak Ave, Los Angeles, CA 90002\"},\"items\":[{\"itemId\":\"item_burger\",\"name\":\"Classic Burger\",\"quantity\":2,\"unitPriceCents\":1299}],\"specialInstructions\":\"No onions please\"}",
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "cus_01HVMKN0000000000000000001",
+        "cognito:groups": ["customers"],
+        "email": "customer@example.com"
+      }
+    },
+    "requestId": "d7bf0bd7-8c72-22f7-ab52-a4f9ebef0000"
+  },
+  "isBase64Encoded": false
+}
