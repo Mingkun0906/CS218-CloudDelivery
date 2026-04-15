@@ -1,5 +1,9 @@
-# Claude Code
+# Internal planning docs (shared between team members directly, not via GitHub)
 CLAUDE.md
+COLLABORATION.md
+INTERFACE_SPEC.md
+TEST_CASES.md
+SETUP.md
 
 # Environment & secrets
 .env
