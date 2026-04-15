@@ -1,0 +1,15 @@
+{
+  "Records": [
+    {
+      "messageId": "msg_01J8KZ2XYZ",
+      "receiptHandle": "AQEBwJnKyrHigUMZj6reyNurzbEP...",
+      "body": "{\"Type\":\"Notification\",\"MessageId\":\"evt_01J8KZ2XYZ\",\"Message\":\"{\\\"notificationType\\\":\\\"COURIER_ASSIGNED\\\",\\\"eventId\\\":\\\"evt_01J8KZ2XYZ\\\",\\\"timestamp\\\":\\\"2026-04-14T20:00:03Z\\\",\\\"traceId\\\":\\\"unknown\\\",\\\"recipients\\\":{\\\"courierId\\\":\\\"cur_01J8KZ2XYZ\\\",\\\"customerId\\\":\\\"cus_01J8KZ2XYZ\\\",\\\"restaurantId\\\":\\\"rst_01J8KZ2XYZ\\\"},\\\"data\\\":{\\\"orderId\\\":\\\"ord_01J8KZ2XYZ\\\",\\\"status\\\":\\\"assigned\\\",\\\"pickupAddress\\\":\\\"123 Main St, Los Angeles, CA 90001\\\",\\\"dropoffAddress\\\":\\\"456 Oak Ave, Los Angeles, CA 90002\\\"}}\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1744665603000"
+      },
+      "eventSource": "aws:sqs",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}

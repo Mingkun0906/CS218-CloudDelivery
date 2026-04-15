@@ -1,0 +1,400 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: CloudDelivery — Real-Time Food Delivery Matching System (CS218 Final Project)
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues: [dev, prod]
+    Default: dev
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Tracing: Active
+    Environment:
+      Variables:
+        ENV: !Ref Env
+        LOG_LEVEL: INFO
+        ORDERS_TABLE: !Sub clouddelivery-${Env}
+
+Resources:
+
+  # ── DynamoDB Single Table ──────────────────────────────────
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub clouddelivery-${Env}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+        - AttributeName: GSI3PK
+          AttributeType: S
+        - AttributeName: GSI3SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-CustomerOrders
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2-RestaurantOrders
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI3-CourierStatus
+          KeySchema:
+            - AttributeName: GSI3PK
+              KeyType: HASH
+            - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ── Kinesis Streams ────────────────────────────────────────
+  OrderStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: !Sub clouddelivery-orders-${Env}
+      ShardCount: 1
+      RetentionPeriodHours: 24
+
+  LocationStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: !Sub clouddelivery-locations-${Env}
+      ShardCount: 1
+      RetentionPeriodHours: 24
+
+  # ── SNS Topic ─────────────────────────────────────────────
+  MatchTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub clouddelivery-match-notifications-${Env}
+
+  # ── SQS Queues ────────────────────────────────────────────
+  NotificationDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub clouddelivery-notifications-dlq-${Env}
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  NotificationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub clouddelivery-notifications-${Env}
+      VisibilityTimeout: 30
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt NotificationDLQ.Arn
+        maxReceiveCount: 3
+
+  NotificationQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref NotificationQueue
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt NotificationQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref MatchTopic
+
+  MatchTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref MatchTopic
+      Protocol: sqs
+      Endpoint: !GetAtt NotificationQueue.Arn
+
+  # ── Cognito User Pool ─────────────────────────────────────
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub clouddelivery-users-${Env}
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub clouddelivery-client-${Env}
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  CourierGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: couriers
+      UserPoolId: !Ref CognitoUserPool
+
+  CustomerGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: customers
+      UserPoolId: !Ref CognitoUserPool
+
+  RestaurantGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: restaurants
+      UserPoolId: !Ref CognitoUserPool
+
+  # ── API Gateway ───────────────────────────────────────────
+  CloudDeliveryAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub clouddelivery-api-${Env}
+      StageName: !Ref Env
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+        AddDefaultAuthorizerToCorsPreflight: false
+
+  # ── Lambda Functions ──────────────────────────────────────
+  OrderAPILambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub clouddelivery-order-api-${Env}
+      CodeUri: lambdas/order_api/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          ORDER_STREAM_NAME: !Ref OrderStream
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - KinesisCrudPolicy:
+            StreamName: !Ref OrderStream
+      Events:
+        PostOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /orders
+            Method: POST
+        GetOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /orders/{orderId}
+            Method: GET
+        DeleteOrder:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /orders/{orderId}
+            Method: DELETE
+        HealthCheck:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /health
+            Method: GET
+            Auth:
+              Authorizer: NONE
+
+  CourierAPILambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub clouddelivery-courier-api-${Env}
+      CodeUri: lambdas/courier_api/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          LOCATION_STREAM_NAME: !Ref LocationStream
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - KinesisCrudPolicy:
+            StreamName: !Ref LocationStream
+      Events:
+        PutLocation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /couriers/{courierId}/location
+            Method: PUT
+        GetAssignment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /couriers/{courierId}/assignment
+            Method: GET
+        AcceptAssignment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /couriers/{courierId}/assignment/accept
+            Method: PUT
+        RejectAssignment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /couriers/{courierId}/assignment/reject
+            Method: PUT
+        UpdateDeliveryStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudDeliveryAPI
+            Path: /couriers/{courierId}/assignment/status
+            Method: PUT
+
+  MatchingLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub clouddelivery-matching-${Env}
+      CodeUri: lambdas/matching/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          REDIS_HOST: FILL_IN_AFTER_ELASTICACHE_DEPLOY
+          REDIS_PORT: "6379"
+          SEARCH_RADIUS_KM: "5"
+          MAX_COURIER_CANDIDATES: "10"
+          MATCH_TOPIC_ARN: !Ref MatchTopic
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt MatchTopic.TopicName
+        - KinesisStreamReadPolicy:
+            StreamName: !Ref OrderStream
+      Events:
+        KinesisOrderStream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt OrderStream.Arn
+            StartingPosition: LATEST
+            BatchSize: 1
+            BisectBatchOnFunctionError: true
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  LocationLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub clouddelivery-location-${Env}
+      CodeUri: lambdas/location/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          REDIS_HOST: FILL_IN_AFTER_ELASTICACHE_DEPLOY
+          REDIS_PORT: "6379"
+          LOCATION_TTL_SECONDS: "30"
+      Policies:
+        - KinesisStreamReadPolicy:
+            StreamName: !Ref LocationStream
+      Events:
+        KinesisLocationStream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt LocationStream.Arn
+            StartingPosition: LATEST
+            BatchSize: 10
+            BisectBatchOnFunctionError: true
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  NotificationLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub clouddelivery-notification-${Env}
+      CodeUri: lambdas/notification/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          NOTIFICATION_QUEUE_URL: !Ref NotificationQueue
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt NotificationQueue.QueueName
+        - DynamoDBReadPolicy:
+            TableName: !Ref OrdersTable
+      Events:
+        SQSQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt NotificationQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${CloudDeliveryAPI}.execute-api.us-east-1.amazonaws.com/${Env}
+
+  OrdersTableName:
+    Description: DynamoDB table name
+    Value: !Ref OrdersTable
+
+  OrderStreamName:
+    Description: Kinesis order stream name
+    Value: !Ref OrderStream
+
+  LocationStreamName:
+    Description: Kinesis location stream name
+    Value: !Ref LocationStream
+
+  MatchTopicArn:
+    Description: SNS match notifications topic ARN
+    Value: !Ref MatchTopic
+
+  NotificationQueueUrl:
+    Description: SQS notification queue URL
+    Value: !Ref NotificationQueue
+
+  NotificationDLQUrl:
+    Description: SQS dead letter queue URL
+    Value: !Ref NotificationDLQ
+
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+
+  CognitoClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoUserPoolClient

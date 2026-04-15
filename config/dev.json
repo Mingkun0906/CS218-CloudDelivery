@@ -1,0 +1,37 @@
+{
+  "MatchingLambda": {
+    "ORDERS_TABLE": "clouddelivery-dev",
+    "REDIS_HOST": "FILL_IN_AFTER_SAM_DEPLOY",
+    "REDIS_PORT": "6379",
+    "SEARCH_RADIUS_KM": "5",
+    "MAX_COURIER_CANDIDATES": "10",
+    "MATCH_TOPIC_ARN": "FILL_IN_AFTER_SAM_DEPLOY",
+    "ENV": "dev",
+    "LOG_LEVEL": "INFO"
+  },
+  "LocationLambda": {
+    "REDIS_HOST": "FILL_IN_AFTER_SAM_DEPLOY",
+    "REDIS_PORT": "6379",
+    "LOCATION_TTL_SECONDS": "30",
+    "ENV": "dev",
+    "LOG_LEVEL": "INFO"
+  },
+  "OrderAPILambda": {
+    "ORDERS_TABLE": "clouddelivery-dev",
+    "ORDER_STREAM_NAME": "clouddelivery-orders-dev",
+    "ENV": "dev",
+    "LOG_LEVEL": "INFO"
+  },
+  "CourierAPILambda": {
+    "ORDERS_TABLE": "clouddelivery-dev",
+    "LOCATION_STREAM_NAME": "clouddelivery-locations-dev",
+    "ENV": "dev",
+    "LOG_LEVEL": "INFO"
+  },
+  "NotificationLambda": {
+    "ORDERS_TABLE": "clouddelivery-dev",
+    "NOTIFICATION_QUEUE_URL": "FILL_IN_AFTER_SAM_DEPLOY",
+    "ENV": "dev",
+    "LOG_LEVEL": "INFO"
+  }
+}

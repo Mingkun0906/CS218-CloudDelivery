@@ -1,0 +1,19 @@
+{
+  "Records": [
+    {
+      "kinesis": {
+        "sequenceNumber": "49590338271490256608559692540925702759324208523137515522",
+        "data": "eyJldmVudElkIjoiZXZ0XzAxSjhLWjJYWVoiLCJldmVudFR5cGUiOiJPUkRFUl9QTEFDRUQiLCJzY2hlbWFWZXJzaW9uIjoiMS4wIiwidGltZXN0YW1wIjoiMjAyNi0wNC0xNFQyMDowMDowMFoiLCJ0cmFjZUlkIjoidW5rbm93biIsInBheWxvYWQiOnsiIG9yZGVySWQiOiJvcmRfMDFKOEtaMlhZWiIsImN1c3RvbWVySWQiOiJjdXNfMDFKOEtaMlhZWiIsInJlc3RhdXJhbnRJZCI6InJzdF8wMUo4S1oyWFlaIiwicGlja3VwTGF0IjozNC4wNTIyLCJwaWNrdXBMbmciOi0xMTguMjQzNywiZHJvcG9mZkxhdCI6MzQuMDYxMSwiZHJvcG9mZkxuZyI6LTExOC4yNDAwLCJ0b3RhbEFtb3VudENlbnRzIjoyNTk4LCJjcmVhdGVkQXQiOiIyMDI2LTA0LTE0VDIwOjAwOjAwWiJ9fQ==",
+        "partitionKey": "ord_01J8KZ2XYZ",
+        "approximateArrivalTimestamp": 1744665600.0
+      },
+      "eventSource": "aws:kinesis",
+      "eventVersion": "1.0",
+      "eventID": "shardId-000000000000:49590338271490256608559692540925702759324208523137515522",
+      "eventName": "aws:kinesis:record",
+      "invokeIdentityArn": "arn:aws:iam::123456789012:role/MatchingLambdaRole",
+      "awsRegion": "us-east-1",
+      "eventSourceARN": "arn:aws:kinesis:us-east-1:123456789012:stream/clouddelivery-orders-dev"
+    }
+  ]
+}

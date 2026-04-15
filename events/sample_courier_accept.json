@@ -1,0 +1,19 @@
+{
+  "httpMethod": "PUT",
+  "resource": "/couriers/{courierId}/assignment/accept",
+  "pathParameters": {
+    "courierId": "cur_01J8KZ2XYZ"
+  },
+  "body": "{}",
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "cur_01J8KZ2XYZ",
+        "cognito:groups": ["couriers"]
+      }
+    }
+  },
+  "headers": {
+    "Authorization": "Bearer <test-jwt>"
+  }
+}
