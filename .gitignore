@@ -1,0 +1,46 @@
+# Claude Code
+CLAUDE.md
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+aws_credentials
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Locust / test output
+locust_report*.html
+locust_stats*.csv
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
