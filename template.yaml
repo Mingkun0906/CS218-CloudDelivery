@@ -328,8 +328,6 @@ Resources:
       Handler: handler.lambda_handler
       Environment:
         Variables:
-          REDIS_HOST: FILL_IN_AFTER_ELASTICACHE_DEPLOY
-          REDIS_PORT: "6379"
           LOCATION_TTL_SECONDS: "30"
       Policies:
         - KinesisStreamReadPolicy:
@@ -368,6 +366,238 @@ Resources:
             FunctionResponseTypes:
               - ReportBatchItemFailures
 
+  # ── CloudWatch Observability ──────────────────────────────
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub clouddelivery-alarms-${Env}
+
+  DLQDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub clouddelivery-dlq-depth-${Env}
+      AlarmDescription: DLQ has messages — failed notifications need attention
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt NotificationDLQ.QueueName
+      AlarmActions:
+        - !Ref AlarmTopic
+      TreatMissingData: notBreaching
+
+  KinesisOrderLagAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub clouddelivery-kinesis-order-lag-${Env}
+      AlarmDescription: Order stream consumer lag > 10s
+      MetricName: GetRecords.IteratorAgeMilliseconds
+      Namespace: AWS/Kinesis
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 10000
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: StreamName
+          Value: !Ref OrderStream
+      AlarmActions:
+        - !Ref AlarmTopic
+      TreatMissingData: notBreaching
+
+  LambdaConcurrencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub clouddelivery-lambda-concurrency-${Env}
+      AlarmDescription: Lambda concurrent executions > 500
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 500
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+      TreatMissingData: notBreaching
+
+  LambdaErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub clouddelivery-lambda-errors-${Env}
+      AlarmDescription: Lambda errors > 5 in 1 minute
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+      TreatMissingData: notBreaching
+
+  DynamoDBThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub clouddelivery-dynamo-throttle-${Env}
+      AlarmDescription: DynamoDB throttled requests > 0
+      MetricName: ThrottledRequests
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref OrdersTable
+      AlarmActions:
+        - !Ref AlarmTopic
+      TreatMissingData: notBreaching
+
+  CloudDeliveryDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub CloudDelivery-${Env}
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "Matching Latency (ms)",
+                "region": "us-east-1",
+                "metrics": [
+                  ["CloudDelivery/${Env}", "matching.duration_ms", {"stat": "p50", "label": "p50"}],
+                  ["CloudDelivery/${Env}", "matching.duration_ms", {"stat": "p95", "label": "p95"}],
+                  ["CloudDelivery/${Env}", "matching.duration_ms", {"stat": "p99", "label": "p99"}]
+                ],
+                "period": 60,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{"value": 1000, "label": "p99 SLA (1000ms)", "color": "#ff0000"}]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "Assignment Results",
+                "region": "us-east-1",
+                "metrics": [
+                  ["CloudDelivery/${Env}", "matching.assignment_result", "Result", "success", {"stat": "Sum", "label": "Success"}],
+                  ["CloudDelivery/${Env}", "matching.assignment_result", "Result", "no_courier", {"stat": "Sum", "label": "No Courier"}],
+                  ["CloudDelivery/${Env}", "matching.assignment_result", "Result", "conflict", {"stat": "Sum", "label": "Conflict (retry)"}]
+                ],
+                "period": 60,
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda Concurrent Executions",
+                "region": "us-east-1",
+                "metrics": [
+                  ["AWS/Lambda", "ConcurrentExecutions", {"stat": "Maximum", "label": "All Lambdas"}],
+                  ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", "clouddelivery-matching-${Env}", {"stat": "Maximum", "label": "MatchingLambda"}]
+                ],
+                "period": 60,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{"value": 500, "label": "Alert threshold", "color": "#ff0000"}]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda Errors & Cold Starts",
+                "region": "us-east-1",
+                "metrics": [
+                  ["AWS/Lambda", "Errors", {"stat": "Sum", "label": "Errors (all)"}],
+                  ["AWS/Lambda", "InitDuration", {"stat": "SampleCount", "label": "Cold Starts (count)"}]
+                ],
+                "period": 60,
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "title": "Kinesis Consumer Lag (ms)",
+                "region": "us-east-1",
+                "metrics": [
+                  ["AWS/Kinesis", "GetRecords.IteratorAgeMilliseconds", "StreamName", "clouddelivery-orders-${Env}", {"stat": "Maximum", "label": "Orders stream"}],
+                  ["AWS/Kinesis", "GetRecords.IteratorAgeMilliseconds", "StreamName", "clouddelivery-locations-${Env}", {"stat": "Maximum", "label": "Locations stream"}]
+                ],
+                "period": 60,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{"value": 10000, "label": "Alert threshold (10s)", "color": "#ff0000"}]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB Throttled Requests",
+                "region": "us-east-1",
+                "metrics": [
+                  ["AWS/DynamoDB", "ThrottledRequests", "TableName", "clouddelivery-${Env}", {"stat": "Sum", "label": "Throttled"}]
+                ],
+                "period": 60,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{"value": 0, "label": "Any throttle = alert", "color": "#ff0000"}]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 18, "width": 12, "height": 6,
+              "properties": {
+                "title": "DLQ Depth",
+                "region": "us-east-1",
+                "metrics": [
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "clouddelivery-notifications-dlq-${Env}", {"stat": "Maximum", "label": "DLQ messages"}]
+                ],
+                "period": 60,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{"value": 0, "label": "Any DLQ message = alert", "color": "#ff0000"}]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 18, "width": 12, "height": 6,
+              "properties": {
+                "title": "Couriers in Geo-Index & Radius",
+                "region": "us-east-1",
+                "metrics": [
+                  ["CloudDelivery/${Env}", "location.active_couriers", {"stat": "Maximum", "label": "Active couriers"}],
+                  ["CloudDelivery/${Env}", "matching.couriers_in_radius", {"stat": "Average", "label": "Avg couriers in radius"}]
+                ],
+                "period": 60,
+                "view": "timeSeries"
+              }
+            }
+          ]
+        }
+
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
@@ -404,3 +634,11 @@ Outputs:
   CognitoClientId:
     Description: Cognito App Client ID
     Value: !Ref CognitoUserPoolClient
+
+  AlarmTopicArn:
+    Description: SNS topic ARN for CloudWatch alarms
+    Value: !Ref AlarmTopic
+
+  DashboardUrl:
+    Description: CloudWatch dashboard URL
+    Value: !Sub https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=CloudDelivery-${Env}
