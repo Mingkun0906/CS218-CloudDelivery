@@ -55,11 +55,13 @@ from shared.validation import validate_order_placed_payload
 redis_client = _get_redis_client()
 table = _get_table()
 sns_client = boto3.client("sns", region_name="us-east-1")
+sqs_client = boto3.client("sqs", region_name="us-east-1")
 
 ENV = os.environ.get("ENV", "dev")
 SEARCH_RADIUS_KM = float(os.environ.get("SEARCH_RADIUS_KM", "5"))
 MAX_COURIER_CANDIDATES = int(os.environ.get("MAX_COURIER_CANDIDATES", "10"))
 MATCH_TOPIC_ARN = os.environ.get("MATCH_TOPIC_ARN", "")
+RETRY_QUEUE_URL = os.environ.get("RETRY_QUEUE_URL", "")
 MAX_RETRY_COUNT = 3
 
 GEO_KEY = "couriers:locations"
@@ -178,7 +180,9 @@ def _match_order(
 
     if not candidates:
         logger.info("no_couriers_in_radius", order_id=order_id, trace_id=trace_id)
-        _mark_unassigned_or_failed(order_id, trace_id)
+        _mark_unassigned_or_failed(
+            order_id, customer_id, restaurant_id, pickup_lat, pickup_lng, trace_id
+        )
         metrics.emit(
             "matching.assignment_result", 1, dimensions={"Result": "no_courier"}
         )
@@ -217,7 +221,9 @@ def _match_order(
         candidate_count=len(candidates),
         trace_id=trace_id,
     )
-    _mark_unassigned_or_failed(order_id, trace_id)
+    _mark_unassigned_or_failed(
+        order_id, customer_id, restaurant_id, pickup_lat, pickup_lng, trace_id
+    )
     metrics.emit(
         "matching.assignment_result",
         1,
@@ -333,15 +339,21 @@ def _publish_assignment(
     )
 
 
-def _mark_unassigned_or_failed(order_id: str, trace_id: str) -> None:
+def _mark_unassigned_or_failed(
+    order_id: str,
+    customer_id: str,
+    restaurant_id: str,
+    pickup_lat: float,
+    pickup_lng: float,
+    trace_id: str,
+) -> None:
     """Increment retryCount and set order to unassigned or failed.
 
     If retryCount reaches MAX_RETRY_COUNT the order is permanently failed.
+    When the order is unassigned (retryCount < MAX_RETRY_COUNT), sends a
+    message to RetryQueue with a 30s delay so RetryLambda re-injects the
+    ORDER_PLACED event into Kinesis for another matching attempt.
     Skips silently if the order was already assigned by a concurrent invocation.
-
-    TODO (Zhuoqun): When new_status == "unassigned", schedule a re-matching event
-    after 30s (e.g. via EventBridge Scheduler). The retry logic is implemented
-    application-side; the trigger mechanism is infra-side.
     """
     now = _now_iso()
 
@@ -391,14 +403,32 @@ def _mark_unassigned_or_failed(order_id: str, trace_id: str) -> None:
             trace_id=trace_id,
         )
 
+        if new_status == OrderStatus.UNASSIGNED and RETRY_QUEUE_URL:
+            # Schedule a re-matching attempt in 30s via RetryLambda.
+            sqs_client.send_message(
+                QueueUrl=RETRY_QUEUE_URL,
+                MessageBody=json.dumps({
+                    "orderId": order_id,
+                    "customerId": customer_id,
+                    "restaurantId": restaurant_id,
+                    "pickupLat": pickup_lat,
+                    "pickupLng": pickup_lng,
+                }),
+                DelaySeconds=30,
+            )
+            logger.info(
+                "retry_scheduled",
+                order_id=order_id,
+                delay_seconds=30,
+                trace_id=trace_id,
+            )
+
         if new_status == OrderStatus.FAILED:
             metrics.emit(
                 "matching.assignment_result",
                 1,
                 dimensions={"Result": "failed_max_retries"},
             )
-            # TODO (Zhuoqun): publish NO_COURIER_FOUND notification to SNS so
-            # NotificationLambda can push a failure message to the customer.
 
     except ClientError as exc:
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
