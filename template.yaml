@@ -112,6 +112,14 @@ Resources:
       TopicName: !Sub clouddelivery-match-notifications-${Env}
 
   # ── SQS Queues ────────────────────────────────────────────
+  RetryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub clouddelivery-retry-${Env}
+      # No queue-level delay; MatchingLambda sets DelaySeconds=30 per-message.
+      VisibilityTimeout: 35        # > Lambda timeout (30s) to avoid double-processing
+      MessageRetentionPeriod: 300  # 5 minutes — retry messages are short-lived
+
   NotificationDLQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -302,6 +310,7 @@ Resources:
           SEARCH_RADIUS_KM: "5"
           MAX_COURIER_CANDIDATES: "10"
           MATCH_TOPIC_ARN: !Ref MatchTopic
+          RETRY_QUEUE_URL: !Ref RetryQueue
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref OrdersTable
@@ -309,6 +318,8 @@ Resources:
             TopicName: !GetAtt MatchTopic.TopicName
         - KinesisStreamReadPolicy:
             StreamName: !Ref OrderStream
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt RetryQueue.QueueName
       Events:
         KinesisOrderStream:
           Type: Kinesis
@@ -362,6 +373,29 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt NotificationQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  RetryLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub clouddelivery-retry-${Env}
+      CodeUri: lambdas/
+      Handler: retry.handler.lambda_handler
+      Environment:
+        Variables:
+          ORDER_STREAM_NAME: !Ref OrderStream
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt RetryQueue.QueueName
+        - KinesisCrudPolicy:
+            StreamName: !Ref OrderStream
+      Events:
+        RetryQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt RetryQueue.Arn
             BatchSize: 10
             FunctionResponseTypes:
               - ReportBatchItemFailures
