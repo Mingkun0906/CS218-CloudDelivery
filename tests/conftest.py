@@ -35,6 +35,8 @@ os.environ.setdefault("SEARCH_RADIUS_KM", "5")
 os.environ.setdefault("MAX_COURIER_CANDIDATES", "10")
 os.environ.setdefault("MATCH_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:clouddelivery-match-notifications-test")
 os.environ.setdefault("LOCATION_TTL_SECONDS", "30")
+os.environ.setdefault("ORDER_STREAM_NAME", "clouddelivery-orders-test")
+os.environ.setdefault("LOCATION_STREAM_NAME", "clouddelivery-locations-test")
 os.environ.setdefault("NOTIFICATION_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123456789012/clouddelivery-notifications-test")
 
 # Disable X-Ray so subsegment() is a no-op in all tests.

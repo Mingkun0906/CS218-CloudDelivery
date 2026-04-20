@@ -227,7 +227,7 @@ def _match_order(
     metrics.emit(
         "matching.assignment_result",
         1,
-        dimensions={"Result": "conflict_exhausted"},
+        dimensions={"Result": "conflict"},
     )
 
 
@@ -254,7 +254,7 @@ def _try_assign_courier(order_id: str, courier_id: str, trace_id: str) -> bool:
                 ),
                 ConditionExpression=(
                     "attribute_not_exists(courierId) AND "
-                    "(#s = :matching OR #s = :placed)"
+                    "(#s = :matching OR #s = :placed OR #s = :reassigning)"
                 ),
                 ExpressionAttributeNames={"#s": "status"},
                 ExpressionAttributeValues={
@@ -262,6 +262,7 @@ def _try_assign_courier(order_id: str, courier_id: str, trace_id: str) -> bool:
                     ":assigned": OrderStatus.ASSIGNED,
                     ":matching": OrderStatus.MATCHING,
                     ":placed": OrderStatus.PLACED,
+                    ":reassigning": OrderStatus.REASSIGNING,
                     ":zero": 0,
                     ":one": 1,
                     ":now": now,
@@ -337,6 +338,24 @@ def _publish_assignment(
         courier_id=courier_id,
         trace_id=trace_id,
     )
+
+    # Write COURIER assignment record so CourierAPILambda can look up the
+    # current assignment by courierId (GET /couriers/{id}/assignment).
+    try:
+        table.put_item(Item={
+            "PK": f"COURIER#{courier_id}",
+            "SK": "ASSIGNMENT",
+            "orderId": order_id,
+            "assignedAt": _now_iso(),
+        })
+    except ClientError as exc:
+        # Non-critical: the order is already locked; log and continue.
+        logger.warn(
+            "courier_assignment_record_write_failed",
+            courier_id=courier_id,
+            error=str(exc),
+            trace_id=trace_id,
+        )
 
 
 def _mark_unassigned_or_failed(
