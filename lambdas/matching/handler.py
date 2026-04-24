@@ -33,7 +33,10 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
+
+_boto_cfg = Config(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1, "mode": "standard"})
 from ulid import ULID
 
 from shared import logger, metrics
@@ -54,8 +57,8 @@ from shared.validation import validate_order_placed_payload
 
 redis_client = _get_redis_client()
 table = _get_table()
-sns_client = boto3.client("sns", region_name="us-east-1")
-sqs_client = boto3.client("sqs", region_name="us-east-1")
+sns_client = boto3.client("sns", region_name="us-east-1", config=_boto_cfg)
+sqs_client = boto3.client("sqs", region_name="us-east-1", config=_boto_cfg)
 
 ENV = os.environ.get("ENV", "dev")
 SEARCH_RADIUS_KM = float(os.environ.get("SEARCH_RADIUS_KM", "5"))
@@ -377,18 +380,20 @@ def _mark_unassigned_or_failed(
     now = _now_iso()
 
     try:
-        # Atomic increment; guard ensures we don't overwrite an assigned order.
-        response = table.update_item(
-            Key={"PK": f"ORDER#{order_id}", "SK": "METADATA"},
-            UpdateExpression=(
-                "SET retryCount = if_not_exists(retryCount, :zero) + :one, "
-                "updatedAt = :now, "
-                "version = if_not_exists(version, :zero) + :one"
-            ),
-            ConditionExpression="attribute_not_exists(courierId)",
-            ExpressionAttributeValues={":zero": 0, ":one": 1, ":now": now},
-            ReturnValues="UPDATED_NEW",
-        )
+        with subsegment("dynamo.increment_retry") as seg:
+            seg.put_metadata("order_id", order_id)
+            # Atomic increment; guard ensures we don't overwrite an assigned order.
+            response = table.update_item(
+                Key={"PK": f"ORDER#{order_id}", "SK": "METADATA"},
+                UpdateExpression=(
+                    "SET retryCount = if_not_exists(retryCount, :zero) + :one, "
+                    "updatedAt = :now, "
+                    "version = if_not_exists(version, :zero) + :one"
+                ),
+                ConditionExpression="attribute_not_exists(courierId)",
+                ExpressionAttributeValues={":zero": 0, ":one": 1, ":now": now},
+                ReturnValues="UPDATED_NEW",
+            )
 
         new_retry_count = int(response["Attributes"].get("retryCount", 1))
         metrics.emit("matching.retry_count", 1)
@@ -399,20 +404,23 @@ def _mark_unassigned_or_failed(
             else OrderStatus.UNASSIGNED
         )
 
-        table.update_item(
-            Key={"PK": f"ORDER#{order_id}", "SK": "METADATA"},
-            UpdateExpression=(
-                "SET #s = :status, updatedAt = :now, "
-                "version = if_not_exists(version, :zero) + :one"
-            ),
-            ExpressionAttributeNames={"#s": "status"},
-            ExpressionAttributeValues={
-                ":status": new_status,
-                ":zero": 0,
-                ":one": 1,
-                ":now": now,
-            },
-        )
+        with subsegment("dynamo.update_status") as seg:
+            seg.put_metadata("order_id", order_id)
+            seg.put_metadata("new_status", new_status)
+            table.update_item(
+                Key={"PK": f"ORDER#{order_id}", "SK": "METADATA"},
+                UpdateExpression=(
+                    "SET #s = :status, updatedAt = :now, "
+                    "version = if_not_exists(version, :zero) + :one"
+                ),
+                ExpressionAttributeNames={"#s": "status"},
+                ExpressionAttributeValues={
+                    ":status": new_status,
+                    ":zero": 0,
+                    ":one": 1,
+                    ":now": now,
+                },
+            )
 
         logger.info(
             "order_marked",

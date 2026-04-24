@@ -18,9 +18,14 @@ import os
 from typing import Optional
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
-_cw = boto3.client("cloudwatch", region_name="us-east-1")
+_cw = boto3.client(
+    "cloudwatch",
+    region_name="us-east-1",
+    config=Config(connect_timeout=1, read_timeout=1, retries={"max_attempts": 1, "mode": "standard"}),
+)
 _ENV = os.environ.get("ENV", "dev")
 _NAMESPACE = f"CloudDelivery/{_ENV}"
 
@@ -53,8 +58,7 @@ def emit(
                 }
             ],
         )
-    except ClientError as exc:
-        # Import lazily to avoid circular dependency with logger
+    except Exception as exc:
         import logging
 
         logging.getLogger(__name__).warning(
