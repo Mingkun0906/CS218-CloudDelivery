@@ -95,7 +95,7 @@ Resources:
     Type: AWS::Kinesis::Stream
     Properties:
       Name: !Sub clouddelivery-orders-${Env}
-      ShardCount: 1
+      ShardCount: 2
       RetentionPeriodHours: 24
 
   LocationStream:

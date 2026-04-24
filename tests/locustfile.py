@@ -41,6 +41,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from locust import User, between, events, task
 from locust.exception import StopUser
@@ -75,8 +76,10 @@ TERMINAL_STATUSES = {"assigned", "unassigned", "failed"}
 
 # ── Shared AWS clients (module-level, reused across users) ────────────────────
 
-_kinesis = boto3.client("kinesis", region_name=AWS_REGION)
-_dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
+_kinesis = boto3.client("kinesis", region_name=AWS_REGION,
+                        config=Config(max_pool_connections=100))
+_dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION,
+                            config=Config(max_pool_connections=100))
 _table = _dynamodb.Table(ORDERS_TABLE)
 
 
@@ -225,7 +228,7 @@ class OrderUser(User):
         # 1. Pre-create the DynamoDB record (mirrors what OrderAPI does in prod)
         try:
             _seed_dynamo_record(order_id, event)
-        except ClientError as exc:
+        except Exception as exc:
             _fire(self.environment, "place_order", 0, success=False, exc=exc)
             return
 
