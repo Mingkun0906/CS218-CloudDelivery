@@ -4,6 +4,8 @@ COLLABORATION.md
 INTERFACE_SPEC.md
 TEST_CASES.md
 SETUP.md
+PROJECT_GUIDE.md
+*.pdf
 
 # Environment & secrets
 .env
