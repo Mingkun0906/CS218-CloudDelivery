@@ -225,6 +225,10 @@ Resources:
             TableName: !Ref OrdersTable
         - KinesisCrudPolicy:
             StreamName: !Ref OrderStream
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
       Events:
         PostOrder:
           Type: Api
@@ -267,6 +271,10 @@ Resources:
             TableName: !Ref OrdersTable
         - KinesisCrudPolicy:
             StreamName: !Ref LocationStream
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
       Events:
         PutLocation:
           Type: Api
@@ -320,6 +328,10 @@ Resources:
             StreamName: !Ref OrderStream
         - SQSSendMessagePolicy:
             QueueName: !GetAtt RetryQueue.QueueName
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
       Events:
         KinesisOrderStream:
           Type: Kinesis
@@ -343,6 +355,10 @@ Resources:
       Policies:
         - KinesisStreamReadPolicy:
             StreamName: !Ref LocationStream
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
       Events:
         KinesisLocationStream:
           Type: Kinesis
@@ -368,6 +384,10 @@ Resources:
             QueueName: !GetAtt NotificationQueue.QueueName
         - DynamoDBReadPolicy:
             TableName: !Ref OrdersTable
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
       Events:
         SQSQueue:
           Type: SQS
@@ -391,6 +411,10 @@ Resources:
             QueueName: !GetAtt RetryQueue.QueueName
         - KinesisCrudPolicy:
             StreamName: !Ref OrderStream
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
       Events:
         RetryQueueEvent:
           Type: SQS
@@ -631,6 +655,68 @@ Resources:
             }
           ]
         }
+
+  # ── VPC Endpoints ─────────────────────────────────────────────────────────
+  # Gateway endpoint for DynamoDB — free, routes through the main route table.
+  DynamoDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: vpc-022347f78ef0a3b2c
+      ServiceName: !Sub com.amazonaws.us-east-1.dynamodb
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - rtb-02a162e5a173b88b6
+
+  # Security group for interface endpoints — allows HTTPS from Lambda SG.
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTPS from Lambda to VPC interface endpoints
+      VpcId: vpc-022347f78ef0a3b2c
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: sg-026d9252cc3d23c4c
+
+  SNSEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: vpc-022347f78ef0a3b2c
+      ServiceName: !Sub com.amazonaws.us-east-1.sns
+      VpcEndpointType: Interface
+      SubnetIds:
+        - subnet-01aa0eef94fb322ea
+        - subnet-023eec997ff73d783
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+      PrivateDnsEnabled: true
+
+  SQSEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: vpc-022347f78ef0a3b2c
+      ServiceName: !Sub com.amazonaws.us-east-1.sqs
+      VpcEndpointType: Interface
+      SubnetIds:
+        - subnet-01aa0eef94fb322ea
+        - subnet-023eec997ff73d783
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+      PrivateDnsEnabled: true
+
+  CloudWatchEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: vpc-022347f78ef0a3b2c
+      ServiceName: !Sub com.amazonaws.us-east-1.monitoring
+      VpcEndpointType: Interface
+      SubnetIds:
+        - subnet-01aa0eef94fb322ea
+        - subnet-023eec997ff73d783
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+      PrivateDnsEnabled: true
 
 Outputs:
   ApiEndpoint:

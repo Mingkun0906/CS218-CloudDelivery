@@ -123,6 +123,30 @@ def _build_order_event(order_id: str, customer_id: str) -> dict:
     }
 
 
+def _seed_dynamo_record(order_id: str, event: dict) -> None:
+    """Pre-create the order record in DynamoDB with status=placed.
+
+    The real OrderAPI does this before putting to Kinesis. The MatchingLambda's
+    conditional write requires the record to exist with status in
+    (placed, matching, reassigning), so we must mirror that here.
+    """
+    payload = event["payload"]
+    _table.put_item(Item={
+        "PK": f"ORDER#{order_id}",
+        "SK": "METADATA",
+        "orderId": order_id,
+        "customerId": payload["customerId"],
+        "restaurantId": payload["restaurantId"],
+        "pickupLat": str(payload["pickupLat"]),
+        "pickupLng": str(payload["pickupLng"]),
+        "dropoffLat": str(payload["dropoffLat"]),
+        "dropoffLng": str(payload["dropoffLng"]),
+        "totalAmountCents": payload["totalAmountCents"],
+        "status": "placed",
+        "createdAt": payload["createdAt"],
+    })
+
+
 def _put_order(order_id: str, event: dict) -> float:
     """Put one ORDER_PLACED record to Kinesis. Returns put latency in ms."""
     payload = json.dumps(event).encode("utf-8")
@@ -198,7 +222,14 @@ class OrderUser(User):
         order_id = _new_id("ord_")
         event = _build_order_event(order_id, self.customer_id)
 
-        # 1. Measure Kinesis put latency
+        # 1. Pre-create the DynamoDB record (mirrors what OrderAPI does in prod)
+        try:
+            _seed_dynamo_record(order_id, event)
+        except ClientError as exc:
+            _fire(self.environment, "place_order", 0, success=False, exc=exc)
+            return
+
+        # 2. Measure Kinesis put latency
         try:
             put_ms = _put_order(order_id, event)
             _fire(self.environment, "place_order", put_ms, success=True)

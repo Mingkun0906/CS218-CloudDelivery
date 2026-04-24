@@ -9,8 +9,13 @@ Table name: clouddelivery-{env}  (set via ORDERS_TABLE env var)
 import os
 
 import boto3
+from botocore.config import Config
 
-_dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+_dynamodb = boto3.resource(
+    "dynamodb",
+    region_name="us-east-1",
+    config=Config(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1, "mode": "standard"}),
+)
 _table = _dynamodb.Table(os.environ.get("ORDERS_TABLE", "clouddelivery-dev"))
 
 

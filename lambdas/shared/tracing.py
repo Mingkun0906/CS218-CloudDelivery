@@ -59,12 +59,21 @@ def subsegment(name: str) -> Generator[Optional[_NoOpSegment], None, None]:
         yield _NoOpSegment()
         return
 
+    # Use begin/end instead of the context-manager form so we can safely
+    # swallow X-Ray errors without a double-yield (which causes RuntimeError).
     try:
-        with _recorder.in_subsegment(name) as seg:
-            yield seg
+        seg = _recorder.begin_subsegment(name)
     except Exception:
-        # Never let X-Ray instrumentation break the application.
         yield _NoOpSegment()
+        return
+
+    try:
+        yield seg
+    finally:
+        try:
+            _recorder.end_subsegment()
+        except Exception:
+            pass
 
 
 def get_trace_id() -> str:
