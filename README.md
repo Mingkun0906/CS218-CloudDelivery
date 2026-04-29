@@ -1,6 +1,6 @@
 # CloudDelivery
 
-A serverless real-time food delivery matching engine built on AWS, developed as the UCI CS218 final project.
+A serverless real-time food delivery matching engine built on AWS, developed as the CS218 final project.
 
 **Team:** Zhuoqun Wei (infrastructure, IaC, observability) · Mingkun Liu (Lambda functions, load testing, failure injection)
 
