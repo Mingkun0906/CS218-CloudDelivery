@@ -78,7 +78,7 @@ python simulator/gps_simulator.py --couriers 20 --interval 5
 ### Place a test order and watch it get matched
 
 ```bash
-python simulator/gps_simulator.py --couriers 20 --interval 5 &  # keep running
+python simulator/gps_simulator.py --couriers 20 --interval 5
 
 python - <<'EOF'
 import boto3, json, time
