@@ -77,9 +77,15 @@ python simulator/gps_simulator.py --couriers 20 --interval 5
 
 ### Place a test order and watch it get matched
 
+Run the simulator in **Terminal 1** (keep it running):
+
 ```bash
 python simulator/gps_simulator.py --couriers 20 --interval 5
+```
 
+Then in **Terminal 2**, place a single order:
+
+```bash
 python - <<'EOF'
 import boto3, json, time
 from ulid import ULID
@@ -139,12 +145,22 @@ aws logs tail /aws/lambda/clouddelivery-matching-dev --follow --format short
 
 ### Run the Locust load test
 
+The load test spawns 50 concurrent users placing orders. Run the simulator with enough couriers to exceed that demand — otherwise couriers get exhausted and orders return `unassigned` rather than exercising the matching path.
+
+**Terminal 1** — start couriers (keep running):
+
+```bash
+python simulator/gps_simulator.py --couriers 200 --interval 5
+```
+
+**Terminal 2** — run the load test:
+
 ```bash
 locust -f tests/locustfile.py --headless -u 50 -r 10 --run-time 5m --html /tmp/report.html
 open /tmp/report.html
 ```
 
-Target: p99 ≤ 500ms, 0% failures after Lambda warms up (~30s).
+Target: `place_order` p99 ≤ 500ms; `matching_latency` p99 ≤ 500ms; 0% failures after Lambda warms up (~30s).
 
 ---
 
